@@ -16,18 +16,20 @@ def get_spotify_token():
     response = requests.post(auth_url, headers={"Authorization": f"Basic {auth_header}"}, data={"grant_type": "client_credentials"})
     return response.json().get("access_token")
 
-def get_spotify_track_url(track_name, artist_name):
+def get_spotify_track_info(track_name, artist_name):
     access_token = get_spotify_token()
     if not access_token:
-        return None
+        return None, None
     headers = {"Authorization": f"Bearer {access_token}"}
     query = f"track:{track_name} artist:{artist_name}"
     response = requests.get(f"https://api.spotify.com/v1/search?q={query}&type=track&limit=1", headers=headers)
     if response.status_code == 200:
         results = response.json().get("tracks", {}).get("items")
         if results:
-            return results[0]["external_urls"]["spotify"]
-    return None
+            track_url = results[0]["external_urls"]["spotify"]
+            preview_url = results[0].get("preview_url")
+            return track_url, preview_url
+    return None, None
 
 @app.route('/lastfm/listening')
 def lastfm_listening():
@@ -56,7 +58,7 @@ def lastfm_listening():
 
         track_name = current_track["name"]
         artist_name = current_track["artist"]["#text"]
-        spotify_url = get_spotify_track_url(track_name, artist_name)
+        spotify_url, preview_url = get_spotify_track_info(track_name, artist_name)
 
         track_info = {
             "track_name": track_name,
@@ -64,7 +66,8 @@ def lastfm_listening():
             "album": current_track["album"]["#text"],
             "track_url": current_track["url"],
             "cover_image": current_track["image"][-1]["#text"] if current_track["image"] else None,
-            "spotify_url": spotify_url
+            "spotify_url": spotify_url,
+            "preview_url": preview_url
         }
         return jsonify(track_info)
 
